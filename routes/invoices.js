@@ -22,12 +22,12 @@ router
         try {
             const {comp_code, amt} = req.body;
             const result = await db.query(
-                `INSERT INTO companies (comp_code, amt)
+                `INSERT INTO invoices (comp_code, amt)
                 VALUES ($1, $2)
-                RETURNING code, name, description`,
+                RETURNING comp_code, amt`,
                 [comp_code, amt]
             );
-            return res.statusCode(201).json({created_invoice: result.rows[0]});
+            return res.status(201).json({created_invoice: result.rows[0]});
         } catch (err) {
             return next(err);
         }
@@ -50,8 +50,8 @@ router
                 WHERE id=$1`, [req.params.id]
             );
             if (results.rows.length === 0)
-                throw new ExpressError(`No such invoice: ${id}, 404`)
-            const data = result.rows[0]
+                throw new ExpressError(`No such invoice: ${req.params.id}`, 404)
+            const data = results.rows[0]
             const invoice = {
                 id: data.id,
                 amt: data.amt,
@@ -64,7 +64,7 @@ router
                     description: data.description
                 }
             }
-            return res.json({invoice: invoice})
+            return res.status(200).json({invoice: invoice})
         } catch (err) {
             return next(err);
         }
@@ -75,9 +75,11 @@ router
             const result = await db.query(
                 `UPDATE invoices SET amt=$2
                 WHERE id=$1
-                RETURNING code, name, description`,
+                RETURNING id, comp_code, amt, paid, add_date, paid_date`,
                 [req.params.id, amt]
             );
+            if (result.rows.length === 0)
+                throw new ExpressError(`No such invoice: ${req.params.id}`, 404)
             return res.json({updated_invoice: result.rows[0]});
         } catch (err) {
             return next(err);
@@ -86,9 +88,12 @@ router
     .delete(async (req, res, next) => {
         try {
             const result = await db.query(
-                `DELETE FROM invoices WHERE id=$1`,
+                `DELETE FROM invoices WHERE id=$1
+                RETURNING id`,
                 [req.params.id]
             );
+            if (result.rows.length === 0)
+                throw new ExpressError(`No such invoice: ${req.params.id}`, 404)
             return res.json({message: 'Deleted'});
         } catch (err) {
             return next(err);

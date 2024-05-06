@@ -1,13 +1,17 @@
-const {Client} = require('pg')
+const {Pool} = require('pg')
 
 const DB_URI = (process.env.NODE_ENV === 'test')
-    ? 'postgresql:///biztime_test'
-    : 'postgresql:///biztime';
+    ? 'biztime_test'
+    : 'biztime';
 
-let db = new Client({
-    connectionString: DB_URI
+let pool = new Pool({
+    database: DB_URI,
+    password: process.env.PASSWORD,
+    host: 'localhost',
+    user: 'postgres',
+    port: 5432,
+    idleTimeoutMillis: 9000,
+    connectionTimeoutMillis: 9000
 });
 
-db.connect();
-
-module.exports = db; 
+module.exports = pool; 

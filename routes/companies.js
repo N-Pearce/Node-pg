@@ -1,5 +1,6 @@
 const express = require("express");
-const db = require('../db')
+const db = require('../db');
+const ExpressError = require("../expressError");
 
 let router = new express.Router()
 
@@ -26,7 +27,7 @@ router
                 RETURNING code, name, description`,
                 [code, name, description]
             );
-            return res.statusCode(201).json({created_company: result.rows[0]});
+            return res.status(201).json({created_company: result.rows[0]});
         } catch (err) {
             return next(err);
         }
@@ -41,6 +42,8 @@ router
                 FROM companies
                 WHERE code=$1`, [req.params.code]
             );
+            if (results.rows.length === 0)
+                throw new ExpressError('Company not found.', 404)
             const invoiceResults = await db.query(
                 `SELECT id FROM invoices
                 WHERE comp_code = $1`, [req.params.code]
@@ -56,25 +59,29 @@ router
     })
     .put(async (req, res, next) => {
         try {
-            const {code, name, description} = req.body;
+            const {name, description} = req.body;
             const result = await db.query(
                 `UPDATE companies SET name=$2, description=$3
                 WHERE code=$1
                 RETURNING code, name, description`,
-                [code, name, description]
+                [req.params.code, name, description]
             );
-            return res.json({updated_company: result.rows[0]});
+            if (result.rows.length === 0)
+                throw new ExpressError(`No such company: ${req.params.id}`, 404)
+            return res.status(200).json({updated_company: result.rows[0]});
         } catch (err) {
             return next(err);
         }
     })
     .delete(async (req, res, next) => {
         try {
-            const {code} = req.body;
             const result = await db.query(
-                `DELETE FROM companies WHERE code=$1`,
-                [code]
+                `DELETE FROM companies WHERE code=$1
+                RETURNING code`,
+                [req.params.code]
             );
+            if (result.rows.length === 0)
+                throw new ExpressError(`No such company: ${req.params.code}`, 404)
             return res.json({message: 'Deleted'});
         } catch (err) {
             return next(err);
